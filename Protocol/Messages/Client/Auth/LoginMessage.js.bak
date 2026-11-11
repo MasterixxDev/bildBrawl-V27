@@ -1,0 +1,120 @@
+const PiranhaMessage = require("../../../PiranhaMessage");
+const ByteStream = require("../../../../ByteStream");
+const LoginOKMessage = require("../../Server/Auth/LoginOKMessage");
+const OwnHomeDataMessage = require("../../Server/Auth/OwnHomeDataMessage");
+const database = require("../../../../db/PlayerManager");
+const Shop = require('../../../../Logic/Shop');
+const LoginFailedMessage = require("../../Server/Auth/LoginFailedMessage");
+
+const MyClubMessage = require("../../Server/Auth/MyClubMessage");
+const AllianceStreamMessage = require("../../Server/Auth/AllianceStreamMessage");
+
+const crypto = require("crypto");
+
+class LoginMessage extends PiranhaMessage {
+  constructor(bytes, session) {
+    super(session);
+    this.session = session;
+    this.id = 10101;
+    this.version = 0;
+    this.stream = new ByteStream(bytes);
+  }
+
+  async decode() {
+    this.stream.readInt();
+    this.session.player.lowID = this.stream.readInt();
+    this.session.player.token = this.stream.readString();
+
+    this.major = this.stream.readInt();
+    this.minor = this.stream.readInt();
+    this.build = this.stream.readInt();
+  }
+
+  async process() {
+    let account;
+
+    if (!this.session.player.token || this.session.player.token === "") {
+      this.session.player.token = crypto
+        .randomBytes(Math.ceil(36 / 2))
+        .toString("hex")
+        .slice(0, 36);
+      account = await database.createAccount(this.session.player);
+    } else {
+      account = await database.getAccount(this.session.player);
+    }
+
+    if (!account) {
+      return new LoginFailedMessage(
+        this.session,
+        `Ваш аккаунт ненайден, нужно переустановить игру!\nYour account is not found, you need to reinstall the game!`,
+        18
+      ).send();
+    }
+
+    Object.assign(this.session.player, account);
+    
+    this.session.player.lowID = account.lowID;
+    this.session.player.token = account.token;
+    
+    this.session.player.ClubID = account.ClubID || 0;
+    this.session.player.ClubRole = account.ClubRole || 0;
+
+    console.log(`Вход игрока: ${account.Name}, LowID: ${account.lowID}, ClubID: ${account.ClubID}`);
+
+    new LoginOKMessage(this.session).send();
+    
+    if (account.Shop.length === 0 || account.Shop[0].EndDate === undefined || Math.floor((new Date(account.Shop[0].EndDate) - new Date()) / 1000) <= 0) {
+      account.Shop = new Shop().generateShop(account);
+      await database.replaceValue(this.session.player.token, 'Shop', account.Shop);
+    }
+
+    new OwnHomeDataMessage(this.session, account).send();
+
+    if (account.ClubID !== 0) {
+      const db = database.getDB();
+      let gettingClub = await database.getClub(db, account.ClubID);
+      
+      if (gettingClub === null) {
+        await database.replaceValue(this.session.player.token, 'ClubID', 0);
+        this.session.player.ClubID = 0;
+        this.session.player.ClubRole = 0;
+      } else if (!gettingClub.members.some(member => member.lowID === account.lowID)) {
+        await database.replaceValue(this.session.player.token, 'ClubID', 0);
+        this.session.player.ClubID = 0;
+        this.session.player.ClubRole = 0;
+      } else {
+        this.session.ClubRole = account.ClubRole;
+        this.session.ClubID = account.ClubID;
+        
+        const clubData = {
+          clubID: gettingClub.clubLowID,
+          Name: gettingClub.clubName,
+          Trophies: gettingClub.clubtrophies || 0,
+          Description: gettingClub.clubdescription || "",
+          BadgeID: gettingClub.clubbadgeID || 1,
+          Region: gettingClub.clubregion || "RU",
+          members: gettingClub.members,
+          data: {
+              Type: gettingClub.clubtype || 1,
+              Trophiesneeded: gettingClub.clubtrophiesneeded || 0,
+              FriendlyFamily: gettingClub.clubfriendlyfamily || 0,
+              Description: gettingClub.clubdescription || ""
+          }
+        };
+
+        const clubMessages = await database.getClubMessages(account.ClubID, 150);
+        
+        await new MyClubMessage(this.session, clubData, false).send();
+        await new AllianceStreamMessage(this.session, clubMessages).send();
+        
+        console.log(`Клубные пакеты отправлены для: ${gettingClub.clubName}, сообщений: ${clubMessages.length}`);
+      }
+    }
+    
+    if (this.session.player.ClubID === 0) {
+      new MyClubMessage(this.session, null, true).send();
+    }
+  }
+}
+
+module.exports = LoginMessage;

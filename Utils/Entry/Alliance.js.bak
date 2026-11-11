@@ -1,0 +1,17 @@
+const AllianceMember = require("./AllianceMember");
+const AllianceHeader = require("./AllianceHeader");
+
+class Alliance {
+  encode(stream, club, members) {
+    new AllianceHeader().encode(stream, club);
+    stream.writeString(club.clubdescription || ""); // Description
+    stream.writeVInt(members.length); // Members count
+    
+    const currentTime = new Date();
+    members.forEach(member => {
+      new AllianceMember().encode(stream, member, currentTime);
+    });
+  }
+}
+
+module.exports = Alliance;

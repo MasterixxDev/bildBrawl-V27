@@ -1,0 +1,92 @@
+const config = require("../config.json")
+
+class Messaging {
+    constructor(session){
+        this.session = session;
+    }
+
+    /**
+     * Send packet to user session.
+     */
+    send() {
+        if (this.id < 20000) return;
+    
+        this.encode()
+
+        if (config.crypto.activate) {
+            this.stream.buffer = this.session.crypto.encrypt(this.stream.buffer)
+        }
+        
+        const header = this.generateHeader(this.id, this.stream.buffer.length, this.version)
+        this.session.write(Buffer.concat([header, this.stream.buffer, Buffer.from([0xFF, 0xFF, 0x0, 0x0, 0x0, 0x0, 0x0])]))
+        const block = []//[23456,24101,20104,20103,24403,24111,24113,24301,24399,24312,24333];
+        if (block.includes(this.id)) {
+            // Ничего не делать, так как пакет есть в block
+        } else {
+            this.session.Log(`Packet ${this.id} (${this.constructor.name}) was sent.`);
+        }
+    }
+
+    /**
+     * Send packet to another user session
+     * @param { Number } sessionId Session ID
+     * 
+     * @example
+     * ```js
+     *  new ExampleMessage(this.session).sendToSession(1)
+     * ```
+     */
+    sendToSession(sessionId) {
+        if (this.id < 20000) return;
+
+        this.encode()
+
+        const session = sessions.find(session => session.id === sessionId)
+
+        if (!session) return;
+
+        const header = this.generateHeader(this.id, this.stream.buffer.length, this.version)
+
+        session.write(Buffer.concat([header, this.stream.buffer, Buffer.from([0xFF, 0xFF, 0x0, 0x0, 0x0, 0x0, 0x0])]))
+        session.Log(`Packet ${this.id} (${this.constructor.name}) was sent to session with ID ${session.id}.`)
+    }
+
+    sendLowID(sessionId) {
+        if (this.id < 20000) return;
+
+        this.encode()
+
+        const session = Array.from(global.sessionsMap.values()).find(session => session.lowID === sessionId);
+
+        if (!session) return;
+
+        const header = this.generateHeader(this.id, this.stream.buffer.length, this.version)
+
+        session.write(Buffer.concat([header, this.stream.buffer, Buffer.from([0xFF, 0xFF, 0x0, 0x0, 0x0, 0x0, 0x0])]))
+        const block = []//[23456,24101,20104,20103,24403,24111,24113,24301,24399,24312,24333];
+        if (block.includes(this.id)) {
+            // Ничего не делать, так как пакет есть в block
+        } else {
+            session.Log(`Packet ${this.id} (${this.constructor.name}) was sent to session with ID ${sessionId}.`)
+        }
+    }
+
+    /**
+     * Generates header for packet.
+     * @param { Number } id Packet ID
+     * @param { Number } length Packet length
+     * @param { Number } version Packet version
+     * @returns { Buffer } Packet header
+     */
+    generateHeader(id, length, version) {
+        const header = Buffer.alloc(7)
+
+        header.writeUInt16BE(id, 0)
+        header.writeUIntBE(length, 2, 3)
+        header.writeUInt16BE(version, 5)
+
+        return header
+    }
+}
+
+module.exports = Messaging

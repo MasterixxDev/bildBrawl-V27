@@ -1,0 +1,411 @@
+{
+    "achievements": [
+        {
+            "id": "trophy_1250_shelly",
+            "name": "35 ранг на Шелли",
+            "description": "Достигнуть 1250 трофеев на Шелли",
+            "targetTrophies": 1250,
+            "character": 0,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_colt",
+            "name": "35 ранг на Кольте",
+            "description": "Достигнуть 1250 трофеев на Кольте",
+            "targetTrophies": 1250,
+            "character": 1,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_bull",
+            "name": "35 ранг на Булле",
+            "description": "Достигнуть 1250 трофеев на Булле",
+            "targetTrophies": 1250,
+            "character": 2,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_brock",
+            "name": "35 ранг на Броке",
+            "description": "Достигнуть 1250 трофеев на Броке",
+            "targetTrophies": 1250,
+            "character": 3,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_rico",
+            "name": "35 ранг на Рико",
+            "description": "Достигнуть 1250 трофеев на Рико",
+            "targetTrophies": 1250,
+            "character": 4,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_spike",
+            "name": "35 ранг на Спайке",
+            "description": "Достигнуть 1250 трофеев на Спайке",
+            "targetTrophies": 1250,
+            "character": 5,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_barley",
+            "name": "35 ранг на Барли",
+            "description": "Достигнуть 1250 трофеев на Барли",
+            "targetTrophies": 1250,
+            "character": 6,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_jessie",
+            "name": "35 ранг на Джесси",
+            "description": "Достигнуть 1250 трофеев на Джесси",
+            "targetTrophies": 1250,
+            "character": 7,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_nita",
+            "name": "35 ранг на Ните",
+            "description": "Достигнуть 1250 трофеев на Ните",
+            "targetTrophies": 1250,
+            "character": 8,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_dynamike",
+            "name": "35 ранг на Динамайке",
+            "description": "Достигнуть 1250 трофеев на Динамайке",
+            "targetTrophies": 1250,
+            "character": 9,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_elprimo",
+            "name": "35 ранг на Эль Примо",
+            "description": "Достигнуть 1250 трофеев на Эль Примо",
+            "targetTrophies": 1250,
+            "character": 10,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_mortis",
+            "name": "35 ранг на Мортисе",
+            "description": "Достигнуть 1250 трофеев на Мортисе",
+            "targetTrophies": 1250,
+            "character": 11,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_crow",
+            "name": "35 ранг на Вороне",
+            "description": "Достигнуть 1250 трофеев на Вороне",
+            "targetTrophies": 1250,
+            "character": 12,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_poco",
+            "name": "35 ранг на Поко",
+            "description": "Достигнуть 1250 трофеев на Поко",
+            "targetTrophies": 1250,
+            "character": 13,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_bo",
+            "name": "35 ранг на Бо",
+            "description": "Достигнуть 1250 трофеев на Бо",
+            "targetTrophies": 1250,
+            "character": 14,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_piper",
+            "name": "35 ранг на Пайпер",
+            "description": "Достигнуть 1250 трофеев на Пайпер",
+            "targetTrophies": 1250,
+            "character": 15,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_pam",
+            "name": "35 ранг на Пэм",
+            "description": "Достигнуть 1250 трофеев на Пэм",
+            "targetTrophies": 1250,
+            "character": 16,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_tara",
+            "name": "35 ранг на Таре",
+            "description": "Достигнуть 1250 трофеев на Таре",
+            "targetTrophies": 1250,
+            "character": 17,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_darryl",
+            "name": "35 ранг на Дэрилле",
+            "description": "Достигнуть 1250 трофеев на Дэрилле",
+            "targetTrophies": 1250,
+            "character": 18,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_penny",
+            "name": "35 ранг на Пенни",
+            "description": "Достигнуть 1250 трофеев на Пенни",
+            "targetTrophies": 1250,
+            "character": 19,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_frank",
+            "name": "35 ранг на Фрэнке",
+            "description": "Достигнуть 1250 трофеев на Фрэнке",
+            "targetTrophies": 1250,
+            "character": 20,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_gene",
+            "name": "35 ранг на Джине",
+            "description": "Достигнуть 1250 трофеев на Джине",
+            "targetTrophies": 1250,
+            "character": 21,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_tick",
+            "name": "35 ранг на Тике",
+            "description": "Достигнуть 1250 трофеев на Тике",
+            "targetTrophies": 1250,
+            "character": 22,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_leon",
+            "name": "35 ранг на Леоне",
+            "description": "Достигнуть 1250 трофеев на Леоне",
+            "targetTrophies": 1250,
+            "character": 23,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_rosa",
+            "name": "35 ранг на Розе",
+            "description": "Достигнуть 1250 трофеев на Розе",
+            "targetTrophies": 1250,
+            "character": 24,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_carl",
+            "name": "35 ранг на Карле",
+            "description": "Достигнуть 1250 трофеев на Карле",
+            "targetTrophies": 1250,
+            "character": 25,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_bibi",
+            "name": "35 ранг на Биби",
+            "description": "Достигнуть 1250 трофеев на Биби",
+            "targetTrophies": 1250,
+            "character": 26,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_8bit",
+            "name": "35 ранг на 8-Бите",
+            "description": "Достигнуть 1250 трофеев на 8-Бите",
+            "targetTrophies": 1250,
+            "character": 27,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_sandy",
+            "name": "35 ранг на Сэнди",
+            "description": "Достигнуть 1250 трофеев на Сэнди",
+            "targetTrophies": 1250,
+            "character": 28,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_bea",
+            "name": "35 ранг на Беа",
+            "description": "Достигнуть 1250 трофеев на Беа",
+            "targetTrophies": 1250,
+            "character": 29,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_emz",
+            "name": "35 ранг на Эмз",
+            "description": "Достигнуть 1250 трофеев на Эмз",
+            "targetTrophies": 1250,
+            "character": 30,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_mrp",
+            "name": "35 ранг на Мистере П",
+            "description": "Достигнуть 1250 трофеев на Мистере П",
+            "targetTrophies": 1250,
+            "character": 31,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_max",
+            "name": "35 ранг на Макс",
+            "description": "Достигнуть 1250 трофеев на Макс",
+            "targetTrophies": 1250,
+            "character": 32,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_jacky",
+            "name": "35 ранг на Джеки",
+            "description": "Достигнуть 1250 трофеев на Джеки",
+            "targetTrophies": 1250,
+            "character": 34,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_gale",
+            "name": "35 ранг на Гейле",
+            "description": "Достигнуть 1250 трофеев на Гейле",
+            "targetTrophies": 1250,
+            "character": 35,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_nani",
+            "name": "35 ранг на Нани",
+            "description": "Достигнуть 1250 трофеев на Нани",
+            "targetTrophies": 1250,
+            "character": 36,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        },
+        {
+            "id": "trophy_1250_sprout",
+            "name": "35 ранг на Спрауте",
+            "description": "Достигнуть 1250 трофеев на Спрауте",
+            "targetTrophies": 1250,
+            "character": 37,
+            "reward": {
+                "gems": 50
+            },
+            "type": "trophy"
+        }
+    ]
+}

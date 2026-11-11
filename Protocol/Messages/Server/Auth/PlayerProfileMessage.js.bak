@@ -1,0 +1,97 @@
+const PiranhaMessage = require('../../../PiranhaMessage');
+const ByteStream = require("../../../../ByteStream");
+const PlayerDisplayData = require('../../Wrappers/PlayerDisplayData');
+
+class PlayerProfileMessage extends PiranhaMessage {
+  constructor(session, account, clubData, obtainedViaGetIDAccount = true) {
+    super(session);
+    this.id = 24113;
+    this.session = session;
+    this.version = 0;
+    this.account = account;
+    this.clubData = clubData; // Получаем готовые данные клуба
+    this.obtainedViaGetIDAccount = obtainedViaGetIDAccount;
+    this.stream = new ByteStream();
+  }
+
+  encode() {
+    const account = this.account;
+    
+    const lowID = this.obtainedViaGetIDAccount 
+      ? this.account.lowID 
+      : this.session.lowID;
+
+    this.stream.writeLogicLong(0, lowID);
+    this.stream.writeVInt(0)
+
+    const brawlersArray = this.account.Brawlers;
+
+    const unlockedBrawlers = brawlersArray.filter(brawler => brawler.unlocked === true);
+    const unlockedCount = unlockedBrawlers.length;
+
+    this.stream.writeVInt(unlockedCount);
+    for (const brawler of unlockedBrawlers) {
+        this.stream.writeDataReference(16, brawler.id);
+        this.stream.writeVInt(0);
+        this.stream.writeVInt(brawler.trophies);
+        this.stream.writeVInt(brawler.trophies);
+        this.stream.writeVInt(brawler.level);
+    }
+
+    this.stream.writeVInt(14)
+    this.stream.writeLogicLong(1, this.account.TrioWINS || 0)
+    this.stream.writeLogicLong(2, this.account.Experience || 0)
+    this.stream.writeLogicLong(3, this.account.Trophies || 0)
+    this.stream.writeLogicLong(4, this.account.Trophies || 0)
+    this.stream.writeLogicLong(5, unlockedCount)
+    this.stream.writeLogicLong(6, 1)
+    this.stream.writeLogicLong(7, 1)
+    this.stream.writeLogicLong(8, this.account.SoloWINS || 0)
+    this.stream.writeLogicLong(9, 0)
+    this.stream.writeLogicLong(10, 0)
+    this.stream.writeLogicLong(11, 0)
+    this.stream.writeLogicLong(12, 0)
+    this.stream.writeLogicLong(13, 0)
+    this.stream.writeLogicLong(14, 0)
+    
+    new PlayerDisplayData(this.stream, this.account.Name, this.account.Thumbnail, this.account.Namecolor).encode();
+
+    // Используем переданные данные клуба
+    if (this.account.ClubID > 0 && this.clubData) {
+      console.log(`[Profile] Writing real club data: ${this.clubData.clubName}`)
+      this.stream.writeBoolean(true)
+      this.stream.writeInt(0)
+      this.stream.writeInt(this.account.ClubID)
+      this.stream.writeString(this.clubData.clubName)
+      this.stream.writeDataReference(8, this.clubData.clubbadgeID || 1)
+      this.stream.writeVInt(this.clubData.clubtype || 1)
+      this.stream.writeVInt(this.clubData.members ? this.clubData.members.length : 1)
+      this.stream.writeVInt(this.clubData.clubtrophies || 0)
+      this.stream.writeVInt(this.clubData.clubtrophiesneeded || 0)
+      this.stream.writeVInt(0)
+      this.stream.writeString(this.clubData.clubregion || "RU")
+      this.stream.writeVInt(0)
+      this.stream.writeDataReference(25, this.account.ClubRole || 1)
+    } else if (this.account.ClubID > 0) {
+      // Если ClubID есть но данных нет
+      console.log(`[Profile] Writing basic club data for ID: ${this.account.ClubID}`)
+      this.stream.writeBoolean(true)
+      this.stream.writeInt(0)
+      this.stream.writeInt(this.account.ClubID)
+      this.stream.writeString("Club #" + this.account.ClubID)
+      this.stream.writeDataReference(8, 1)
+      this.stream.writeVInt(1)
+      this.stream.writeVInt(1)
+      this.stream.writeVInt(1000)
+      this.stream.writeVInt(0)
+      this.stream.writeVInt(0)
+      this.stream.writeString("RU")
+      this.stream.writeVInt(0)
+      this.stream.writeDataReference(25, 1)
+    } else {
+      this.stream.writeBoolean(false)
+    }
+  }
+}
+
+module.exports = PlayerProfileMessage;

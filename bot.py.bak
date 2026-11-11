@@ -1,0 +1,827 @@
+import telebot
+from pymongo import MongoClient
+import json
+import os
+import datetime
+import logging
+import random
+import asyncio
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Токен бота
+API_TOKEN = '7962335034:AAE5qGHa1TUvwy5XjYwrg5GMzwcQ6eoIQMY'
+
+# Подключение к MongoDB
+client = MongoClient('localhost')
+db = client['jevilv26']
+accounts = db['acc']
+linked_accounts = db['link']
+pending_links = db['pending_links']  # для ожидающих привязки
+pending_transfers = db['pending_transfers']  # для ожидающих переноса
+
+# Админы
+ADMIN_IDS = (7249489180, 7249489180)
+
+# Пути
+os.makedirs("backups", exist_ok=True)
+os.makedirs("JSON", exist_ok=True)
+BANNED_FILE_PATH = 'JSON/banned.json'
+PROMO_FILE_PATH = "/root/27/Logic/SpecialCodes.json"
+
+bot = telebot.TeleBot(API_TOKEN)
+
+# Конвертер тега в lowID
+async def tag2id(tag):
+    TagChar = ("0","2","8","9","P","Y","L","Q","G","R","J","C","U","V")
+    Id = 0
+    for c in tag.upper():
+        if c not in TagChar: return None
+        Id = Id * len(TagChar) + TagChar.index(c)
+    return (Id - Id % 256) >> 8
+
+# Синхронная обёртка для асинхронной функции
+def tag_to_lowid(tag):
+    return asyncio.run(tag2id(tag))
+
+# Сериализатор для datetime
+def json_serializer(obj):
+    if isinstance(obj, datetime.datetime):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+def is_admin(user_id):
+    return user_id in ADMIN_IDS
+
+# Утилита для загрузки данных из JSON
+def load_json(path, default):
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return default
+
+# Утилита для сохранения
+def save_json(path, data):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+@bot.message_handler(commands=['start'])
+def start_message(message):
+    bot.reply_to(message, "Добро пожаловать! Используйте команды:\n"
+                           "/connect — привязать аккаунт\n"
+                           "/transfer — перенести аккаунт\n" 
+                           "/profile — посмотреть профиль")
+
+# Убедимся, что папка существует
+os.makedirs(os.path.dirname(PROMO_FILE_PATH), exist_ok=True)
+
+# Создадим файл, если его нет
+if not os.path.exists(PROMO_FILE_PATH):
+    with open(PROMO_FILE_PATH, 'w', encoding='utf-8') as f:
+        json.dump([], f, ensure_ascii=False, indent=2)
+
+@bot.message_handler(commands=['promo'])
+def add_promo_code(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "❌ У вас нет прав для выполнения этой команды!")
+        return
+
+    try:
+        args = message.text.split()
+        if len(args) != 4:
+            bot.reply_to(message, 
+                "Формат:\n"
+                "/promo skin <skinID> <id>\n"
+                "/promo gems <amount> <id>\n\n"
+                "Примеры:\n"
+                "/promo skin 52 release\n"
+                "/promo gems 500 summer25"
+            )
+            return
+
+        _, ptype, value_str, code_id = args
+
+        if ptype not in ('skin', 'gems'):
+            bot.reply_to(message, "❌ Тип должен быть 'skin' или 'gems'.")
+            return
+
+        try:
+            value = int(value_str)
+            if value <= 0:
+                raise ValueError
+        except ValueError:
+            bot.reply_to(message, "❌ Значение должно быть положительным числом.")
+            return
+
+        # Загружаем текущие коды
+        with open(PROMO_FILE_PATH, 'r', encoding='utf-8') as f:
+            codes = json.load(f)
+
+        # Проверка дубликата
+        if any(c.get('id') == code_id for c in codes):
+            bot.reply_to(message, f"❌ Промокод с ID '{code_id}' уже существует!")
+            return
+
+        # Создаём новый код
+        if ptype == 'skin':
+            new_code = {
+                "id": code_id,
+                "type": "skin",
+                "skinID": value
+            }
+        else:  # gems
+            new_code = {
+                "id": code_id,
+                "type": "gems",
+                "amount": value
+            }
+
+        # Добавляем и сохраняем
+        codes.append(new_code)
+        with open(PROMO_FILE_PATH, 'w', encoding='utf-8') as f:
+            json.dump(codes, f, ensure_ascii=False, indent=2)
+
+        bot.reply_to(message, f"✅ Промокод создан!\n"
+                              f"ID: `{code_id}`\n"
+                              f"Тип: `{ptype}`\n"
+                              f"Значение: `{value}`", parse_mode="Markdown")
+
+        logging.info(f"[PROMO] Админ {message.from_user.id} создал промокод: {new_code}")
+
+    except Exception as e:
+        logging.error(f"[PROMO ERROR] {e}")
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
+@bot.message_handler(commands=['notify'])
+def send_global_notification(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "❌ У вас нет прав для выполнения этой команды!")
+        return
+
+    try:
+        # Получаем текст после команды
+        text = message.text[8:].strip()  # "/notify " = 8 символов
+        if not text:
+            bot.reply_to(message, "❌ Укажите текст уведомления.\nПример: /notify Добро пожаловать!")
+            return
+
+        # Подтверждение (опционально)
+        bot.reply_to(message, f"📤 Отправляю уведомление всем игрокам:\n\n\"{text}\"")
+
+        # Получаем всех игроков
+        players = list(accounts.find({}, {'lowID': 1}))
+        total = len(players)
+
+        if total == 0:
+            bot.reply_to(message, "⚠️ Нет игроков в базе.")
+            return
+
+        # Формируем уведомление
+        notification = {
+            'NotificationID': 81,
+            'NotificationRead': False,
+            'NotificationTime': int(datetime.datetime.now().timestamp()),
+            'NotificationText': text,
+            'NotificationType': 0
+        }
+
+        # Обновляем каждого игрока
+        success = 0
+        for player in players:
+            try:
+                accounts.update_one(
+                    {'lowID': player['lowID']},
+                    {
+                        '$push': {
+                            'notifications': {
+                                '$each': [notification],
+                                '$slice': -50
+                            }
+                        }
+                    }
+                )
+                success += 1
+            except Exception as e:
+                logging.error(f"[NOTIFY] Ошибка для lowID {player['lowID']}: {e}")
+
+        bot.send_message(
+            message.chat.id,
+            f"✅ Уведомление отправлено {success} из {total} игроков.\n"
+            f"Текст: \"{text}\""
+        )
+        logging.info(f"[GLOBAL NOTIFY] Отправлено {success} игрокам. Текст: {text}")
+
+    except Exception as e:
+        logging.error(f"[NOTIFY ERROR] {e}")
+        bot.reply_to(message, f"❌ Ошибка при отправке уведомления: {e}")
+
+@bot.message_handler(commands=['backup'])
+def cmd_backup(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "❌ У вас нет прав для выполнения этой команды!")
+        return
+
+    try:
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"backups/backup_{timestamp}.json"
+
+        accounts_data = list(accounts.find({}))
+        for doc in accounts_data:
+            doc.pop('_id', None)
+
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(accounts_data, f, ensure_ascii=False, indent=2, default=json_serializer)
+
+        with open(filename, 'rb') as f:
+            bot.send_document(
+                message.chat.id,
+                f,
+                caption=f"✅ Резервная копия создана!\n"
+                        f"📁 Файл: `{filename}`\n"
+                        f"👥 Аккаунтов: {len(accounts_data)}",
+                parse_mode="Markdown"
+            )
+        logging.info(f"[BACKUP] Создана резервная копия: {filename}")
+
+    except Exception as e:
+        logging.error(f"[BACKUP ERROR] {e}")
+        bot.reply_to(message, f"❌ Ошибка при создании бекапа: {e}")
+
+@bot.message_handler(commands=['gems'])
+def give_gems(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "❌ У вас нет прав для выполнения этой команды!")
+        return
+
+    try:
+        args = message.text.split()
+        if len(args) != 3:
+            bot.reply_to(message, "Формат: /gems <тег> <количество>")
+            return
+
+        tag = args[1]
+        amount = int(args[2])
+
+        # Конвертируем тег в lowID
+        low_id = tag_to_lowid(tag)
+        if low_id is None:
+            bot.reply_to(message, "❌ Неверный формат тега!")
+            return
+
+        if amount <= 0:
+            bot.reply_to(message, "❌ Количество гемов должно быть больше 0.")
+            return
+
+        user = accounts.find_one({'lowID': low_id})
+        if not user:
+            bot.reply_to(message, f"❌ Аккаунт с тегом {tag} не найден.")
+            return
+
+        # Создаём уведомление
+        gem_notification = {
+            'NotificationID': 89,
+            'NotificationRead': False,
+            'NotificationTime': int(datetime.datetime.now().timestamp()),
+            'NotificationText': 'спасибо за донат',
+            'Gems': amount
+        }
+
+        # Добавляем уведомление в конец списка (не более 50 последних)
+        accounts.update_one(
+            {'lowID': low_id},
+            {
+                '$push': {
+                    'notifications': {
+                        '$each': [gem_notification],
+                        '$slice': -50
+                    }
+                }
+            }
+        )
+
+        bot.reply_to(message, f"✅ Пользователю {tag} (lowID: {low_id}) отправлено {amount} гемов через уведомление!")
+
+    except ValueError:
+        bot.reply_to(message, "❌ Неверный формат. Используйте: /gems <тег> <число>")
+    except Exception as e:
+        logging.error(f"[GEMS ERROR] {e}")
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
+BRAWLER_SKINS = {
+    0: [1, 2, 3],
+    1: [4, 5, 6, 7],
+    2: [8, 9, 10],
+    3: [11, 12, 13, 14],
+    4: [15, 16, 17, 18],
+    5: [19, 20, 21],
+    6: [22, 23, 24],
+    7: [25, 26],
+    8: [27, 28, 29, 30],
+    9: [31, 32, 33],
+    10: [34, 35, 36],
+    11: [37, 38, 39, 40],
+    12: [41, 42, 43],
+    13: [44, 45, 46],
+    14: [47, 48, 49, 50],
+    15: [51, 52, 53, 54],
+    16: [55],
+    17: [56, 57],
+    18: [58, 59, 60],
+    19: [61, 62, 63],
+    20: [64, 65, 66],
+    21: [67, 68, 69, 70],
+    22: [71, 72],
+    23: [73, 74, 75, 76],
+    24: [],
+    25: [77, 78],
+    26: [],
+    27: [79, 80],
+    28: [81, 82],
+    29: [83, 84],
+    30: [85],
+    31: [86],
+    32: [87, 88],
+    33: [89, 90],
+    34: [91],
+    35: [92, 93],
+}
+
+@bot.message_handler(commands=['vip'])
+def set_vip(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "❌ У вас нет прав для выполнения этой команды!")
+        return
+
+    try:
+        args = message.text.split()
+        if len(args) != 2:
+            bot.reply_to(message, "Формат: /vip <тег>")
+            return
+
+        tag = args[1]
+        
+        # Конвертируем тег в lowID
+        low_id = tag_to_lowid(tag)
+        if low_id is None:
+            bot.reply_to(message, "❌ Неверный формат тега!")
+            return
+
+        user = accounts.find_one({'lowID': low_id})
+        if not user:
+            bot.reply_to(message, f"❌ Аккаунт с тегом {tag} не найден.")
+            return
+
+        # Находим разблокированных бойцов
+        unlocked_brawlers = [
+            b['id'] for b in user.get('Brawlers', [])
+            if b.get('unlocked', False)
+        ]
+
+        if not unlocked_brawlers:
+            bot.reply_to(message, f"❌ У аккаунта {tag} нет разблокированных бойцов.")
+            return
+
+        chosen_brawler = random.choice(unlocked_brawlers)
+
+        # Выдача скина
+        available_skins = BRAWLER_SKINS.get(chosen_brawler, [])
+        if available_skins:
+            chosen_skin = random.choice(available_skins)
+        else:
+            chosen_skin = 999000 + chosen_brawler
+
+        # Добавляем скин в аккаунт
+        accounts.update_one(
+            {'lowID': low_id, 'Brawlers.id': chosen_brawler},
+            {'$addToSet': {'Brawlers.$.Skins': chosen_skin}}
+        )
+
+        # Уведомления
+        gems_notif = {
+            'NotificationID': 89,
+            'NotificationRead': False,
+            'NotificationTime': int(datetime.datetime.now().timestamp()),
+            'NotificationText': 'gemchiki vip',
+            'Gems': 50
+        }
+        skin_notif = {
+            'NotificationID': 94,
+            'NotificationRead': False,
+            'NotificationTime': int(datetime.datetime.now().timestamp()),
+            'NotificationText': 'vip skin',
+            'SkinID': chosen_skin
+        }
+
+        # Обновляем VIP и уведомления
+        accounts.update_one(
+            {'lowID': low_id},
+            {'$set': {
+                'Vip': 1,
+                'notifications': [gems_notif, skin_notif]
+            }}
+        )
+
+        status = "реальный" if available_skins else "заглушка"
+        bot.reply_to(message, f"✅ Пользователь {tag} (lowID: {low_id}) стал VIP!\n"
+                              f"🎁 50 gemchiki vip\n"
+                              f"🎨 vip skin ({status}) ID: {chosen_skin} для бойца {chosen_brawler}")
+
+    except Exception as e:
+        logging.error(f"[VIP ERROR] {e}")
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
+@bot.message_handler(commands=['ban', 'unban'])
+def ban_unban(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "❌ У вас нет прав для выполнения этой команды!")
+        return
+
+    try:
+        cmd = message.text.split()[0][1:]  # 'ban' или 'unban'
+        tag = message.text.split()[1]
+        
+        # Конвертируем тег в lowID
+        low_id = tag_to_lowid(tag)
+        if low_id is None:
+            bot.reply_to(message, "❌ Неверный формат тега!")
+            return
+
+        banned = load_json(BANNED_FILE_PATH, {"banned_low_id": []})
+        banned_ids = banned["banned_low_id"]
+
+        if cmd == 'ban':
+            if low_id not in banned_ids:
+                banned_ids.append(low_id)
+                bot.reply_to(message, f"✅ Пользователь {tag} (lowID: {low_id}) забанен.")
+            else:
+                bot.reply_to(message, f"ℹ️ Пользователь {tag} уже забанен.")
+        else:  # unban
+            if low_id in banned_ids:
+                banned_ids.remove(low_id)
+                bot.reply_to(message, f"✅ Пользователь {tag} (lowID: {low_id}) разбанен.")
+            else:
+                bot.reply_to(message, f"ℹ️ Пользователь {tag} не в бане.")
+
+        banned["banned_low_id"] = banned_ids
+        save_json(BANNED_FILE_PATH, banned)
+
+    except (IndexError, ValueError):
+        bot.reply_to(message, "Формат: /ban <тег> или /unban <тег>")
+
+# Система привязки через код подтверждения
+@bot.message_handler(commands=['connect'])
+def connect_command(message):
+    try:
+        args = message.text.split()
+        if len(args) != 2:
+            bot.reply_to(message, "❌ Пример: /connect <тег>")
+            return
+
+        tag = args[1]
+        user_id = message.from_user.id
+
+        # Проверяем, не привязан ли уже аккаунт
+        if linked_accounts.find_one({'id_user': user_id}):
+            bot.reply_to(message, "❌ У вас уже привязан аккаунт!")
+            return
+
+        # Конвертируем тег в lowID
+        low_id = tag_to_lowid(tag)
+        if low_id is None:
+            bot.reply_to(message, "❌ Неверный формат тега!")
+            return
+
+        player = accounts.find_one({'lowID': low_id})
+        if not player:
+            bot.reply_to(message, "❌ Аккаунт не найден в базе.")
+            return
+
+        # Проверяем, не привязан ли этот lowID к другому пользователю
+        existing_link = linked_accounts.find_one({'lowID': low_id})
+        if existing_link:
+            bot.reply_to(message, "❌ Этот аккаунт уже привязан к другому пользователю!")
+            return
+
+        # Генерируем 6-значный код подтверждения
+        verification_code = str(random.randint(100000, 999999))
+
+        # Сохраняем в ожидающие привязки
+        pending_links.update_one(
+            {'id_user': user_id},
+            {
+                '$set': {
+                    'lowID': low_id,
+                    'verification_code': verification_code,
+                    'created_at': datetime.datetime.now()
+                }
+            },
+            upsert=True
+        )
+
+        # Создаём уведомление с кодом для игрока
+        verification_notification = {
+            'NotificationID': 81,
+            'NotificationRead': False,
+            'NotificationTime': int(datetime.datetime.now().timestamp()),
+            'NotificationText': f'Код подтверждения: {verification_code}',
+            'NotificationType': 0
+        }
+
+        # Добавляем уведомление в аккаунт
+        accounts.update_one(
+            {'lowID': low_id},
+            {
+                '$push': {
+                    'notifications': {
+                        '$each': [verification_notification],
+                        '$slice': -50
+                    }
+                }
+            }
+        )
+
+        bot.reply_to(message, f"📧 Код подтверждения отправлен в уведомления в игре!\n"
+                             f"🔢 Введите код: /verify {verification_code}")
+
+    except Exception as e:
+        logging.error(f"[CONNECT ERROR] {e}")
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
+@bot.message_handler(commands=['verify'])
+def verify_command(message):
+    try:
+        args = message.text.split()
+        if len(args) != 2:
+            bot.reply_to(message, "❌ Пример: /verify <код>")
+            return
+
+        code = args[1]
+        user_id = message.from_user.id
+
+        # Ищем ожидающую привязку
+        pending = pending_links.find_one({'id_user': user_id})
+        if not pending:
+            bot.reply_to(message, "❌ Сначала запустите команду /connect <тег>")
+            return
+
+        # Проверяем код
+        if pending['verification_code'] != code:
+            bot.reply_to(message, "❌ Неверный код подтверждения!")
+            return
+
+        low_id = pending['lowID']
+        player = accounts.find_one({'lowID': low_id})
+
+        # Привязываем аккаунт
+        linked_accounts.insert_one({
+            'lowID': low_id,
+            'id_user': user_id,
+            'Name': player.get('Name', 'Unknown'),
+            'linked_at': datetime.datetime.now()
+        })
+
+        # Удаляем из ожидающих
+        pending_links.delete_one({'id_user': user_id})
+
+        # Отправляем уведомление с кожей 59
+        skin_notification = {
+            'NotificationID': 94,
+            'NotificationRead': False,
+            'NotificationTime': int(datetime.datetime.now().timestamp()),
+            'NotificationText': 'аккаунт привязан',
+            'SkinID': 59
+        }
+
+        accounts.update_one(
+            {'lowID': low_id},
+            {
+                '$push': {
+                    'notifications': {
+                        '$each': [skin_notification],
+                        '$slice': -50
+                    }
+                }
+            }
+        )
+
+        bot.reply_to(message, f"✅ Аккаунт успешно привязан!\n"
+                             f"👤 Игрок: {player.get('Name', 'Unknown')}\n"
+                             f"🎁 В игре появилось уведомление с подарком!")
+
+    except Exception as e:
+        logging.error(f"[VERIFY ERROR] {e}")
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
+# Система переноса аккаунта
+# Система переноса аккаунта
+@bot.message_handler(commands=['transfer'])
+def transfer_command(message):
+    try:
+        args = message.text.split()
+        if len(args) != 2:
+            bot.reply_to(message, "❌ Пример: /transfer <тег_нового_аккаунта>")
+            return
+
+        new_account_tag = args[1]
+        user_id = message.from_user.id
+
+        # Проверяем, есть ли привязанный аккаунт у текущего пользователя
+        linked = linked_accounts.find_one({'id_user': user_id})
+        if not linked:
+            bot.reply_to(message, "❌ У вас нет привязанного аккаунта!")
+            return
+
+        # Конвертируем тег нового аккаунта в lowID
+        new_low_id = tag_to_lowid(new_account_tag)
+        if new_low_id is None:
+            bot.reply_to(message, "❌ Неверный формат тега нового аккаунта!")
+            return
+
+        # Проверяем, существует ли новый аккаунт в базе
+        new_player = accounts.find_one({'lowID': new_low_id})
+        if not new_player:
+            bot.reply_to(message, "❌ Новый аккаунт не найден в базе!")
+            return
+
+        old_low_id = linked['lowID']  # ← ИСПРАВЛЕНО: было 'low_id'
+        old_player = accounts.find_one({'lowID': old_low_id})
+
+        # Генерируем 6-значный код для переноса
+        transfer_code = str(random.randint(100000, 999999))
+
+        # Сохраняем в ожидающие переноса
+        pending_transfers.update_one(
+            {'transfer_code': transfer_code},
+            {
+                '$set': {
+                    'old_low_id': old_low_id,
+                    'new_low_id': new_low_id,
+                    'created_at': datetime.datetime.now()
+                }
+            },
+            upsert=True
+        )
+
+        # Создаём уведомление с кодом для НОВОГО аккаунта
+        transfer_notification = {
+            'NotificationID': 81,
+            'NotificationRead': False,
+            'NotificationTime': int(datetime.datetime.now().timestamp()),
+            'NotificationText': f'Код для восстановления: {transfer_code}\nВведите в боте: /recover {transfer_code}',
+            'NotificationType': 0
+        }
+
+        # Добавляем уведомление в НОВЫЙ аккаунт
+        accounts.update_one(
+            {'lowID': new_low_id},
+            {
+                '$push': {
+                    'notifications': {
+                        '$each': [transfer_notification],
+                        '$slice': -50
+                    }
+                }
+            }
+        )
+
+        bot.reply_to(message, f"🔄 Код отправлен на новый аккаунт: {new_account_tag}")
+
+    except Exception as e:
+        logging.error(f"[TRANSFER ERROR] {e}")
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
+# Система восстановления аккаунта
+@bot.message_handler(commands=['recover'])
+def recover_command(message):
+    try:
+        args = message.text.split()
+        if len(args) != 2:
+            bot.reply_to(message, "❌ Пример: /recover <код>")
+            return
+
+        code = args[1]
+        user_id = message.from_user.id
+
+        # Ищем ожидающий перенос
+        pending = pending_transfers.find_one({'transfer_code': code})
+        if not pending:
+            bot.reply_to(message, "❌ Неверный код!")
+            return
+
+        old_low_id = pending['old_low_id']
+        new_low_id = pending['new_low_id']
+
+        # Получаем токен старого аккаунта
+        old_player = accounts.find_one({'lowID': old_low_id})
+        new_player = accounts.find_one({'lowID': new_low_id})
+        
+        old_token = old_player.get('token', '')
+        
+        # Меняем токены местами
+        if old_token:
+            # Новый аккаунт получает токен старого
+            accounts.update_one(
+                {'lowID': new_low_id},
+                {'$set': {'token': old_token}}
+            )
+            # Старый аккаунт очищаем
+            accounts.update_one(
+                {'lowID': old_low_id},
+                {'$unset': {'token': ''}}
+            )
+
+        # Удаляем старую привязку
+        linked_accounts.delete_one({'lowID': old_low_id})
+        
+        # Привязываем новый аккаунт
+        linked_accounts.insert_one({
+            'lowID': new_low_id,
+            'id_user': user_id,
+            'Name': new_player.get('Name', 'Unknown')
+        })
+
+        # Удаляем из ожидающих
+        pending_transfers.delete_one({'transfer_code': code})
+
+        bot.reply_to(message, f"✅ Аккаунт восстановлен! Токены заменены.")
+
+    except Exception as e:
+        logging.error(f"[RECOVER ERROR] {e}")
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
+@bot.message_handler(commands=['profile'])
+def handle_profile(message):
+    user_id = message.from_user.id
+    linked = linked_accounts.find_one({'id_user': user_id})
+    if not linked:
+        bot.reply_to(message, "❌ Сначала привяжите аккаунт: /connect <тег>")
+        return
+
+    player = accounts.find_one({'lowID': linked['lowID']})
+    if not player:
+        bot.reply_to(message, "❌ Аккаунт не найден в базе.")
+        return
+
+    name = player.get('Name', '—')
+    lowID = player.get('lowID', '—')
+    trophies = player.get('Trophies', 0)
+    gems = player.get('Gems', 0)
+    vip = "Активен" if player.get('Vip', 0) == 1 else "Нет"
+    solo = player.get('SoloWINS', 0)
+    trio = player.get('TrioWINS', 0)
+
+    msg = (f"👤 Профиль: {name}\n\n"
+           f"ID: {lowID}\n"
+           f"Кубки: {trophies}\n"
+           f"Гемы: {gems}\n"
+           f"VIP: {vip}\n"
+           f"Solo побед: {solo}\n"
+           f"Trio побед: {trio}")
+
+    bot.send_message(user_id, msg)
+
+@bot.message_handler(commands=['wins'])
+def get_total_wins(message):
+    try:
+        pipeline = [
+            {
+                "$group": {
+                    "_id": None,
+                    "totalSolo": {"$sum": "$SoloWINS"},
+                    "totalTrio": {"$sum": "$TrioWINS"}
+                }
+            }
+        ]
+        result = list(accounts.aggregate(pipeline))
+        if not result:
+            bot.reply_to(message, "❌ Нет данных.")
+            return
+
+        r = result[0]
+        solo = r.get("totalSolo", 0)
+        trio = r.get("totalTrio", 0)
+        total = solo + trio
+
+        msg = ("🏆 Глобальные победы:\n"
+               f"• Solo: {solo}\n"
+               f"• Trio: {trio}\n"
+               f"➤ Всего: {total}")
+        bot.reply_to(message, msg)
+
+    except Exception as e:
+        logging.error(f"[WINS ERROR] {e}")
+        bot.reply_to(message, "⚠️ Ошибка.")
+
+@bot.message_handler(commands=['stop'])
+def handle_stop(message):
+    if is_admin(message.from_user.id):
+        bot.reply_to(message, "🛑 Бот останавливается...")
+        bot.stop_polling()
+        exit()
+    else:
+        bot.reply_to(message, "❌ Доступ запрещён.")
+
+if __name__ == '__main__':
+    logging.info("Бот запущен. Используется база: jevilv27, коллекция: acc")
+    bot.polling(none_stop=True)

@@ -1,0 +1,92 @@
+function findProgress(type, index) {
+    return global.milestones.find(e => e.Type === type.toString() && e.Index === index.toString());
+}
+
+function GetListAwards() {
+    var i = { 'Indexes': [], 'Amount': [] };
+    var p = { 'Indexes': [], 'Amount': [] };
+    var q = { 'Indexes': [], 'Amount': [] };
+    var r = { 'Indexes': [], 'Amount': [] };
+    var s = { 'Indexes': [], 'Amount': [] };
+    var t = { 'Indexes': [], 'Amount': [] };
+    var u = { 'Indexes': [], 'Amount': [] };
+    var v = { 'Indexes': [], 'Amount': [] };
+    var w = { 'Indexes': [], 'Amount': [] };
+
+    // Обновляем фильтр для учета типов 6, 9 и 10
+    const relevantMilestones = global.milestones.filter(y => ['6', '9', '10'].includes(y.Type));
+
+    for (let y = 0; y < relevantMilestones.length; y++) {
+        const B = relevantMilestones[y];
+        if (B !== undefined) {
+            // Для правильного индексации добавляем префикс типа дороги
+            const fullIndex = `${B.Type}_${B.Index}`;
+            
+            if (B.PrimaryLvlUpRewardType === '1') {
+                i.Indexes.push(fullIndex);
+                i.Amount.push(parseInt(B.PrimaryLvlUpRewardCount));
+            }
+            if (B.PrimaryLvlUpRewardType === '3') {
+                w.Indexes.push(fullIndex);
+                // Используем существующий метод для получения ID бравлера
+                const brawlerID = global.Characters.getIDByCodename(B.PrimaryLvlUpRewardData || B.PrimaryLvlUpRewardHero);
+                w.Amount.push(parseInt(brawlerID));
+            }
+            if (B.PrimaryLvlUpRewardType === '4') {
+                // Пропускаем скины, так как нет метода getSkinIDByCodename
+                // Или обрабатываем как специальный тип награды
+                console.log(`Skin reward detected but skipped: ${B.PrimaryLvlUpRewardData}`);
+            }
+            if (B.PrimaryLvlUpRewardType === '6') {
+                p.Indexes.push(fullIndex);
+                p.Amount.push(1);
+            }
+            if (B.PrimaryLvlUpRewardType === '7') {
+                u.Indexes.push(fullIndex);
+                u.Amount.push(parseInt(B.PrimaryLvlUpRewardCount));
+            }
+            if (B.PrimaryLvlUpRewardType === '9') {
+                s.Indexes.push(fullIndex);
+                s.Amount.push(parseInt(B.PrimaryLvlUpRewardCount));
+            }
+            if (B.PrimaryLvlUpRewardType === '10') {
+                r.Indexes.push(fullIndex);
+                r.Amount.push(1);
+            }
+            if (B.PrimaryLvlUpRewardType === '12') {
+                t.Indexes.push(fullIndex);
+                t.Amount.push(parseInt(B.PrimaryLvlUpRewardCount));
+            }
+            if (B.PrimaryLvlUpRewardType === '13') {
+                v.Indexes.push(fullIndex);
+                v.Amount.push(parseInt(B.PrimaryLvlUpRewardCount));
+            }
+            if (B.PrimaryLvlUpRewardType === '14') {
+                q.Indexes.push(fullIndex);
+                q.Amount.push(1);
+            }
+            if (B.PrimaryLvlUpRewardType === '16') {
+                // Обработка самоцветов - добавляем в Gold или создаем отдельный список
+                i.Indexes.push(fullIndex);
+                i.Amount.push(parseInt(B.PrimaryLvlUpRewardCount));
+            }
+        }
+    }
+
+    return {
+        'Gold': i,
+        'Box': p,
+        'BigBox': q,
+        'MegaBox': r,
+        'TokenDoubler': s,
+        'PowerPoints': t,
+        'Tickets': u,
+        'toDoNothing': v,
+        'Brawlers': w
+    };
+}
+
+module.exports = {
+    'findProgress': findProgress,
+    'GetListAwards': GetListAwards
+};

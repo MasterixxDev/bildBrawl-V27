@@ -1,0 +1,14 @@
+class Entry {
+  PlayerDisplayData(stream, name, experience, icon, nameColor) {
+    stream.writeString(name || 'Unknown'); // Имя
+    stream.writeVInt(experience || 0); // Опыт (брать из данных игрока)
+    stream.writeVInt(28000000 + (icon || 0)); // Иконка
+    stream.writeVInt(43000000 + (nameColor || 0)); // Цвет имени
+    
+    // Дополнительные поля которые могут понадобиться:
+    stream.writeVInt(0); // Unknown
+    stream.writeVInt(0); // Unknown
+  }
+}
+
+module.exports = Entry;

@@ -1,0 +1,30 @@
+{
+  "sessions": [
+    {
+      "id": "6626580689:6626580689",
+      "data": {
+        "MessageID": 62,
+        "enterTag": false,
+        "Tag2Recovery": true,
+        "ConnectAccount": false,
+        "plrID": 0,
+        "code": 0,
+        "cost": 200,
+        "LowID2Recovery": 0,
+        "recoveryCode": 0,
+        "recoveryOldId": 0,
+        "waitingForNewTag": false,
+        "recoveryNewId": 0
+      }
+    },
+    {
+      "id": "7445599403:7445599403",
+      "data": {
+        "MessageID": 61,
+        "enterTag": false,
+        "waitingForNewTag": false,
+        "ConnectAccount": false
+      }
+    }
+  ]
+}

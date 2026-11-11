@@ -1,0 +1,32 @@
+{
+  "name": "nodesc-core",
+  "version": "3.0.0-nightly9",
+  "description": "The world's first open source Supercell private server core written on JavaScript.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "tailsjs",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.18.1",
+    "colors": "^1.4.0",
+    "csv-parse": "^6.1.0",
+    "express": "^5.2.1",
+    "fs": "^0.0.1-security",
+    "glob": "^7.2.0",
+    "mongodb": "4.2",
+    "net": "^1.0.2",
+    "simple-rc4": "^0.0.1-b",
+    "telegraf": "^4.16.3",
+    "telegraf-session-local": "^2.1.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.1",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-import": "^2.25.2",
+    "eslint-plugin-n": "^15.0.0",
+    "eslint-plugin-promise": "^6.0.0"
+  }
+}

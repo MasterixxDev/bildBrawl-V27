@@ -1,0 +1,17 @@
+[
+  {
+    "id": "release",
+    "type": "skin",
+    "skinID": 52
+  },
+  {
+    "id": "goodbye24", 
+    "type": "gems",
+    "amount": 500
+  },
+  {
+    "id": "maybe", 
+    "type": "gems",
+    "amount": 200
+  }
+]

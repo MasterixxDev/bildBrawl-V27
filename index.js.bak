@@ -1,0 +1,143 @@
+const net = require("net");
+const config = require("./config.json");
+const MessageFactory = require("./Protocol/MessageFactory");
+const MessagesHandler = require("./Networking/MessagesHandler");
+const Queue = require("./Networking/Queue");
+require("colors");
+require("./Utils/Logger");
+const Player = require("./Logic/Player");
+const database = require("./db/PlayerManager");
+const LoadCSV = require("./CSVParser/LoadCSV")
+LoadCSV.loadCSV()
+
+const readline = require("readline");
+const rl = readline.createInterface({
+  'input': process.stdin,
+  'output': process.stdout
+});
+global.rl = rl;
+
+const SeasonReset = require("./Utils/seasonReset");
+
+// Глобальная переменная для хранения количества онлайн игроков
+global.onlinePlayers = 0;
+
+// Функция для обновления и отображения онлайн
+function updateOnlineCount() {
+  const online = global.sessionsMap.size;
+  global.onlinePlayers = online;
+  
+  // Очищаем предыдущую строку и выводим новый онлайн
+  process.stdout.write(`\r${'[ONLINE]'.cyan} Players online: ${online.toString().green} `);
+}
+
+(async () => {
+  await database.connectToDB();
+
+  const seasonReset = new SeasonReset();
+  await seasonReset.checkAndResetSeason();
+  
+  setInterval(async () => {
+    await seasonReset.checkAndResetSeason();
+  }, 6 * 60 * 60 * 1000); // 6 часов в миллисекундах
+  
+})();
+
+const server = new net.Server();
+const PORT = config.port; // include server
+
+process.on("SIGINT", async () => {
+  console.log("\nReceived SIGINT signal. Performing cleanup...");
+  // await database.saveAutos();
+
+  console.log("Cleanup complete. Shutting down server.");
+  server.close();
+  process.exit();
+});
+
+global.sessionsMap = new Map();
+
+server.on("connection", async (session) => {
+  session.setNoDelay(true);
+  session.setTimeout(config.sessionTimeoutSeconds * 1000);
+
+  const [ip] = session.remoteAddress.split(":").slice(-1);
+  session.ip = ip;
+
+  session.Log = (text) => Client(session.ip, text);
+  session.Warn = (text) => ClientWarn(session.ip, text);
+  session.Err = (text) => ClientError(session.ip, text);
+
+  session.id = global.sessionsMap.size === 0 ? 1 : global.sessionsMap.size + 1;
+  session.queue = new Queue(config.maxQueueSize, config.disableQueuebugtxtFile);
+  global.sessionsMap.set(session.id, session);
+
+  // Обновляем онлайн при подключении
+  updateOnlineCount();
+  
+  session.Log(`The player has connected! (SESSIONID: ${session.id})`);
+  session.player = new Player();
+  const packets = new MessageFactory(false).getAllPackets();
+  const MessageHandler = new MessagesHandler(session, packets);
+
+  session.on("data", async (bytes) => {
+    let messageHeader = {};
+    session.queue.push(bytes);
+    if (!session.queue.isBusy()) {
+      const queueBytes = session.queue.release();
+
+      if (Array.isArray(queueBytes)) {
+        for (let packet of queueBytes) {
+          await MessageHandler.handle(packet.id, packet.bytes, {});
+        }
+
+        return null;
+      }
+
+      messageHeader = {
+        id: queueBytes.readUInt16BE(0),
+        len: queueBytes.readUIntBE(2, 3),
+        version: queueBytes.readUInt16BE(5),
+        bytes: queueBytes.slice(7, messageHeader.len),
+      };
+
+      await MessageHandler.handle(messageHeader.id, messageHeader.bytes, {});
+    }
+  });
+  
+  session.on("end", async () => {
+    session.Log("Client disconnected.");
+    global.sessionsMap.delete(session.id);
+    // Обновляем онлайн при отключении
+    updateOnlineCount();
+    return session.destroy();
+  });
+
+  session.on("error", async (error) => {
+    try {
+      global.sessionsMap.delete(session.id);
+      // Обновляем онлайн при ошибке
+      updateOnlineCount();
+      return session.destroy();
+    } catch (e) {}
+  });
+
+  session.on("timeout", async () => {
+    session.Warn("Client timeout disconnected");
+    global.sessionsMap.delete(session.id);
+    // Обновляем онлайн при таймауте
+    updateOnlineCount();
+    return session.destroy();
+  });
+});
+
+server.once("listening", () => {
+  ServerLog(`${config.serverName} started on ${PORT} port!`);
+  // Инициализируем отображение онлайн при запуске сервера
+  updateOnlineCount();
+  console.log(); // Добавляем пустую строку для красоты
+});
+server.listen(PORT);
+
+process.on("uncaughtException", (e) => Warn(e.stack));
+process.on("unhandledRejection", (e) => Warn(e.stack));

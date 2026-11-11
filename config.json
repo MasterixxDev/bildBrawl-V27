@@ -1,0 +1,22 @@
+{
+    "port": 2728,
+    "serverName": "Server",
+    "enableLogs": true,
+    "crypto": {
+        "activate": false,
+        "keys": {
+            "key": "fhsd6f86f67rt8fw78fw789we78r9789wer6re",
+            "nonce": "nonce"
+        }
+    },
+    "useLegacyPacketLoader": false,
+    "maxQueueSize": 1024,
+    "disconnectSessionOnQueueOverfilling": true,
+    "enableQueueOverfillingWarning": true,
+    "sessionTimeoutSeconds": 15,
+    "disableQueuebugtxtFile": true,
+    
+    "requiredMajorVersion": 27,
+    "requiredBuildVersion": 270,
+    "updateLink": "https://t.me/Spring_Brawl"
+}
