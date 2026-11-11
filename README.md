@@ -33,3 +33,8 @@ Guide to Ubuntu 18+
 
 Go to the project folder and type `npm i`
 wait for the loading to finish and start the server `node index.js`
+
+install to mongoDB for ubuntu 18-20
+
+`sudo apt-get install mongodb`
+
