@@ -38,3 +38,4 @@ install to mongoDB for ubuntu 18-20
 
 `sudo apt-get install mongodb`
 
+![IMG_1193](https://github.com/MasterixxDev/bildBrawl-V27/blob/main/photo_2026-11-11_12-37-25.jpg)
